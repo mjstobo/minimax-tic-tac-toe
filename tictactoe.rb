@@ -309,7 +309,7 @@ def resetGame(board, playerOne, playerTwo)
   elsif playAgain == "n"
     puts "Thanks for playing!"
   else
-    puts "Incorrect input."
+    puts "Incorrect input. Please choose again."
     resetGame(board, playerOne, playerTwo)
   end
 end
