@@ -69,7 +69,10 @@ end
 
 def playerSelectMovePosition(board, player)
   ### determine valid moves remaining
-  haveAllPositionsBeenTaken(board)
+  outOfMoves = haveAllPositionsBeenTaken(board)
+  if outOfMoves
+    declareDraw()
+  end
   board.printBoard()
 
   if !board.hasGameBeenDecided
@@ -88,7 +91,7 @@ def playerSelectMovePosition(board, player)
         winningMove = checkForWinCondition(board, player)
         if winningMove
           board.hasGameBeenDecided = true
-          declareWinner(player)
+          declareWinner(player, board)
         end
       else
         puts "Invalid move. Position already taken"
@@ -98,8 +101,31 @@ def playerSelectMovePosition(board, player)
   end
 end
 
-def cpuSelectMovePosition(board, cpu)
+def cpuSelectMovePosition(board, cpu, human)
+  bestScore = -Float::INFINITY
+  bestMove = 0
   origBoard = board
+  newBoard = board.dup
+
+  possibleMoves = retrieveRemainingPositions(origBoard)
+  for i in possibleMoves
+    score = minimax(newBoard, cpu, i)
+    if score > bestScore
+      bestScore = score
+      bestMove = i
+      posX, posY = calcXY(bestMove)
+      origBoard.updateBoard(posX, posY, cpu.id)
+      winningMove = checkForWinCondition(origBoard, cpu)
+      if winningMove
+        board.hasGameBeenDecided = true
+        declareWinner(cpu, origBoard)
+      end
+    end
+  end
+end
+
+def minimax(board, player, move)
+  return 1
 end
 
 def calcXY(position)
@@ -178,7 +204,7 @@ def validateDiagScore(board, player)
   if foundWinningScore
     return true
   else
-    player.resetScore(player.diagScore)
+    player.resetScore()
     return false
   end
 end
@@ -195,13 +221,15 @@ def validateRowScore(board, player)
         foundWinningScore = true
         break
       end
+      player.resetScore()
     end
   end
   if foundWinningScore
+    player.resetScore()
     return true
   else
     ## Reset the row score within this iteration to prevent it overflowing to the next iteration (e.g. scoring calculated in this row only)
-    player.resetScore(player.rowScore)
+    player.resetScore()
     return false
   end
 end
@@ -221,17 +249,15 @@ def validateColumnScore(board, player)
         break
       end
     end
-
-    if foundWinningScore
-      player.resetScore(player.columnScore)
-      return true
-    else
-      player.resetScore(player.columnScore)
-      return false
-    end
-
     rowIndex = 0
     colIndex += 1
+    if foundWinningScore
+      player.resetScore()
+      return true
+    else
+      player.resetScore()
+      return false
+    end
   end
 end
 
@@ -251,10 +277,10 @@ def validatedRDiagScore(board, player)
   end
 
   if foundWinningScore
-    player.resetScore(player.rDiagScore)
+    player.resetScore()
     return true
   else
-    player.resetScore(player.rDiagScore)
+    player.resetScore()
     return false
   end
 end
@@ -274,58 +300,77 @@ def haveAllPositionsBeenTaken(board)
   board.gameBoard.each do |row|
     for i in row
       if i.nil? || i.empty?
-      else
         remainingMoves -= 1
       end
     end
-
     if remainingMoves == 0
-      puts " "
-      puts " "
-      puts "The game is a draw!"
-      puts " "
-      puts " "
-      board.hasGameBeenDecided = true
+      return true
+    else
+      return false
     end
   end
 end
 
-def declareWinner(player)
+def retrieveRemainingPositions(board)
+  currPos = 0
+  possibleRemainingMoves = []
+  for i in board.gameBoard
+    for j in i
+      currPos += 1
+      if j.nil? || j.empty?
+        possibleRemainingMoves.push(currPos)
+      end
+    end
+  end
+  return possibleRemainingMoves
+end
+
+def declareDraw()
+  puts " "
+  puts " "
+  puts "The game is a draw!"
+  puts " "
+  puts " "
+  board.hasGameBeenDecided = true
+end
+
+def declareWinner(player, board)
   puts " ~~ "
   puts " ~~ "
   puts "The winner is #{player.name}!"
   puts " ~~ "
   puts " ~~ "
+  board.printBoard()
 end
 
-def resetGame(board, playerOne, playerTwo)
+def resetGame(board, playerOne, playerCPU)
   puts "Would you like to play again? Y for Yes, N for No"
 
   playAgain = gets.chomp.downcase
 
   if playAgain == "y"
     board.resetBoard()
-    gameManager(board, playerOne, playerTwo)
+    gameManager(board, playerOne, playerCPU)
   elsif playAgain == "n"
     puts "Thanks for playing!"
   else
     puts "Incorrect input. Please choose again."
-    resetGame(board, playerOne, playerTwo)
+    resetGame(board, playerOne, playerCPU)
   end
 end
 
-def gameManager(board, playerOne, playerTwo)
+def gameManager(board, playerOne, playerCPU)
   while (!board.hasGameBeenDecided)
     playerSelectMovePosition(board, playerOne)
-    playerSelectMovePosition(board, playerTwo)
+    cpuSelectMovePosition(board, playerCPU, playerOne)
   end
-  resetGame(board, playerOne, playerTwo)
+  resetGame(board, playerOne, playerCPU)
 end
 
 ### execute
 
 board = Board.new()
 playerOne = Player.new()
-playerTwo = Player.new("CPU")
+playerCPU = Player.new("CPU")
 
-gameManager(board, playerOne, playerTwo)
+gameManager(board, playerOne, playerCPU)
