@@ -39,13 +39,13 @@ class Player
     @type = type
 
     if type == "CPU"
-      @id = "CPU"
+      @id = "O"
       @name = "CPU"
     else
-      puts "What is your player symbol?"
-      @id = gets.chomp
+      @id = "X"
       puts "What is your player name?"
       @name = gets.chomp
+      puts = "You are playing as X"
     end
   end
 
@@ -70,12 +70,13 @@ end
 def playerSelectMovePosition(board, player)
   ### determine valid moves remaining
   haveAllPositionsBeenTaken(board)
+  board.printBoard()
 
   if !board.hasGameBeenDecided
-    board.printBoard()
     puts "Make your move, 1 - 9 [1 from top left to 9 bottom right]"
     puts "#{player.name}'s turn. They are #{player.id} on the board."
     position = gets.chomp.to_i
+
     calcPosition = calcXY(position)
     posX, posY = calcPosition
     validMove = checkForValidMove(board, posX, posY)
@@ -84,13 +85,21 @@ def playerSelectMovePosition(board, player)
     else
       if validMove
         board.updateBoard(posX, posY, player.id)
-        checkForWinCondition(board, player)
+        winningMove = checkForWinCondition(board, player)
+        if winningMove
+          board.hasGameBeenDecided = true
+          declareWinner(player)
+        end
       else
         puts "Invalid move. Position already taken"
         playerSelectMovePosition(board, player)
       end
     end
   end
+end
+
+def cpuSelectMovePosition(board, cpu)
+  origBoard = board
 end
 
 def calcXY(position)
@@ -135,17 +144,25 @@ end
 
 def checkForWinCondition(board, player)
   if !board.hasGameBeenDecided
-    validateRowScore(board, player)
-    validateDiagScore(board, player)
-    validatedRDiagScore(board, player)
-    validateColumnScore(board, player)
+    rowWin = validateRowScore(board, player)
+    diagWin = validateDiagScore(board, player)
+    rDiagWin = validatedRDiagScore(board, player)
+    colWin = validateColumnScore(board, player)
 
-    player.resetScore()
+    if rowWin || diagWin || rDiagWin || colWin
+      player.resetScore()
+      return true
+    else
+      player.resetScore()
+      return false
+    end
   end
 end
 
 def validateDiagScore(board, player)
   index = 0
+  foundWinningScore = false
+
   for x in board.gameBoard
     index += 1
     if x[index - 1] == player.id
@@ -153,15 +170,21 @@ def validateDiagScore(board, player)
     end
 
     if player.diagScore == 3
-      declareWinner(player)
-      board.hasGameBeenDecided = true
+      foundWinningScore = true
       break
     end
   end
-  player.resetScore(player.diagScore)
+
+  if foundWinningScore
+    return true
+  else
+    player.resetScore(player.diagScore)
+    return false
+  end
 end
 
 def validateRowScore(board, player)
+  foundWinningScore = false
   board.gameBoard.each do |row|
     for i in row
       if i == player.id
@@ -169,19 +192,24 @@ def validateRowScore(board, player)
       end
 
       if player.rowScore == 3
-        declareWinner(player)
-        board.hasGameBeenDecided = true
+        foundWinningScore = true
         break
       end
     end
+  end
+  if foundWinningScore
+    return true
+  else
     ## Reset the row score within this iteration to prevent it overflowing to the next iteration (e.g. scoring calculated in this row only)
-    player.rowScore = player.resetScore(player.rowScore)
+    player.resetScore(player.rowScore)
+    return false
   end
 end
 
 def validateColumnScore(board, player)
   colIndex = 0
   rowIndex = 0
+  foundWinningScore = false
 
   for x in board.gameBoard
     while board.gameBoard[rowIndex][colIndex] == player.id
@@ -189,13 +217,19 @@ def validateColumnScore(board, player)
       player.columnScore = player.updateScore(player.columnScore)
 
       if player.columnScore == 3
-        declareWinner(player)
-        board.hasGameBeenDecided = true
+        foundWinningScore = true
         break
       end
     end
 
-    player.columnScore = player.resetScore(player.columnScore)
+    if foundWinningScore
+      player.resetScore(player.columnScore)
+      return true
+    else
+      player.resetScore(player.columnScore)
+      return false
+    end
+
     rowIndex = 0
     colIndex += 1
   end
@@ -203,6 +237,7 @@ end
 
 def validatedRDiagScore(board, player)
   index = 0
+  foundWinningScore = false
   for row in board.gameBoard
     index += 1
     if row[-1 - index + 1] == player.id
@@ -210,12 +245,18 @@ def validatedRDiagScore(board, player)
     end
 
     if player.rDiagScore == 3
-      declareWinner(player)
-      board.hasGameBeenDecided = true
+      foundWinningScore = true
       break
     end
   end
-  player.resetScore(player.rDiagScore)
+
+  if foundWinningScore
+    player.resetScore(player.rDiagScore)
+    return true
+  else
+    player.resetScore(player.rDiagScore)
+    return false
+  end
 end
 
 def checkForValidMove(board, posX, posY)
@@ -278,8 +319,6 @@ def gameManager(board, playerOne, playerTwo)
     playerSelectMovePosition(board, playerOne)
     playerSelectMovePosition(board, playerTwo)
   end
-
-  board.printBoard()
   resetGame(board, playerOne, playerTwo)
 end
 
