@@ -21,6 +21,10 @@ class Board
     @gameBoard[posX][posY] = playerId
   end
 
+  def undoMove(posX, posY)
+    @gameBoard[posX][posY] = ""
+  end
+
   def resetBoard()
     @gameBoard = Array.new(3) { Array.new(3, "") }
     @remainingMoves = 9
@@ -104,28 +108,70 @@ end
 def cpuSelectMovePosition(board, cpu, human)
   bestScore = -Float::INFINITY
   bestMove = 0
-  origBoard = board
-  newBoard = board.dup
-
-  possibleMoves = retrieveRemainingPositions(origBoard)
-  for i in possibleMoves
-    score = minimax(newBoard, cpu, i)
+  possibleMoves = retrieveRemainingPositions(board)
+  for move in possibleMoves
+    posX, posY = calcXY(move)
+    board.updateBoard(posX, posY, cpu.id)
+    score = minimax(board, cpu, human, false, move)
+    board.undoMove(posX, posY)
     if score > bestScore
-      bestScore = score
-      bestMove = i
-      posX, posY = calcXY(bestMove)
-      origBoard.updateBoard(posX, posY, cpu.id)
-      winningMove = checkForWinCondition(origBoard, cpu)
-      if winningMove
-        board.hasGameBeenDecided = true
-        declareWinner(cpu, origBoard)
-      end
+      bestMove = move
     end
+  end
+  posX, posY = calcXY(bestMove)
+  board.updateBoard(posX, posY, cpu.id)
+  winningMove = checkForWinCondition(board, cpu)
+  if winningMove
+    board.hasGameBeenDecided = true
+    declareWinner(cpu, board)
   end
 end
 
-def minimax(board, player, move)
-  return 1
+def minimax(board, cpuPlayer, humanPlayer, isMaximising, move)
+  ## Check if the move was a winning or losing move
+  winningMove = checkForWinCondition(board, cpuPlayer)
+  losingMove = checkForWinCondition(board, humanPlayer)
+  ## check if the move was a draw
+  isDraw = haveAllPositionsBeenTaken(board)
+  score = 0
+  if winningMove
+    score = 1
+    return score
+  elsif isDraw
+    score = 0
+    return score
+  elsif losingMove
+    score = -1
+    return score
+  end
+
+  if isMaximising
+    bestScore = -Float::INFINITY
+    possibleMoves = retrieveRemainingPositions(board)
+    for move in possibleMoves
+      posX, posY = calcXY(move)
+      board.updateBoard(posX, posY, cpuPlayer.id)
+      score = minimax(board, cpuPlayer, humanPlayer, false, move)
+      board.undoMove(posX, posY)
+      if score > bestScore
+        bestScore = score
+      end
+    end
+    return bestScore
+  else
+    bestScore = Float::INFINITY
+    possibleMoves = retrieveRemainingPositions(board)
+    for move in possibleMoves
+      posX, posY = calcXY(move)
+      board.updateBoard(posX, posY, humanPlayer.id)
+      score = minimax(board, cpuPlayer, humanPlayer, true, move)
+      board.undoMove(posX, posY)
+      if score < bestScore
+        bestScore = score
+      end
+    end
+    return bestScore
+  end
 end
 
 def calcXY(position)
@@ -361,8 +407,8 @@ end
 
 def gameManager(board, playerOne, playerCPU)
   while (!board.hasGameBeenDecided)
-    playerSelectMovePosition(board, playerOne)
     cpuSelectMovePosition(board, playerCPU, playerOne)
+    playerSelectMovePosition(board, playerOne)
   end
   resetGame(board, playerOne, playerCPU)
 end
