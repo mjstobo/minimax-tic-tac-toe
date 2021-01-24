@@ -43,13 +43,13 @@ class Player
     @type = type
 
     if type == "CPU"
-      @id = "O"
+      @id = "X"
       @name = "CPU"
     else
-      @id = "X"
+      @id = "O"
       puts "What is your player name?"
       @name = gets.chomp
-      puts = "You are playing as X"
+      puts = "You are playing as O"
     end
   end
 
