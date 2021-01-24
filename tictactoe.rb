@@ -75,11 +75,11 @@ def playerSelectMovePosition(board, player)
   ### determine valid moves remaining
   outOfMoves = haveAllPositionsBeenTaken(board)
   if outOfMoves
-    declareDraw()
+    declareDraw(board)
   end
-  board.printBoard()
 
   if !board.hasGameBeenDecided
+    board.printBoard()
     puts "Make your move, 1 - 9 [1 from top left to 9 bottom right]"
     puts "#{player.name}'s turn. They are #{player.id} on the board."
     position = gets.chomp.to_i
@@ -106,24 +106,34 @@ def playerSelectMovePosition(board, player)
 end
 
 def cpuSelectMovePosition(board, cpu, human)
-  bestScore = -Float::INFINITY
-  bestMove = 0
-  possibleMoves = retrieveRemainingPositions(board)
-  for move in possibleMoves
-    posX, posY = calcXY(move)
-    board.updateBoard(posX, posY, cpu.id)
-    score = minimax(board, cpu, human, false, move)
-    board.undoMove(posX, posY)
-    if score > bestScore
-      bestMove = move
+  if !board.hasGameBeenDecided
+    bestScore = -Float::INFINITY
+    bestMove = 0
+    outOfMoves = haveAllPositionsBeenTaken(board)
+    if outOfMoves
+      declareDraw(board)
     end
-  end
-  posX, posY = calcXY(bestMove)
-  board.updateBoard(posX, posY, cpu.id)
-  winningMove = checkForWinCondition(board, cpu)
-  if winningMove
-    board.hasGameBeenDecided = true
-    declareWinner(cpu, board)
+    possibleMoves = retrieveRemainingPositions(board)
+    for move in possibleMoves
+      calcPosition = calcXY(move)
+      posX, posY = calcPosition
+      board.updateBoard(posX, posY, cpu.id)
+      score = minimax(board, cpu, human, false, move)
+      board.undoMove(posX, posY)
+      if score > bestScore
+        bestMove = move
+        bestScore = score
+        puts bestMove
+      end
+    end
+    calcPosition = calcXY(bestMove)
+    posX, posY = calcPosition
+    board.updateBoard(posX, posY, cpu.id)
+    winningMove = checkForWinCondition(board, cpu)
+    if winningMove
+      board.hasGameBeenDecided = true
+      declareWinner(cpu, board)
+    end
   end
 end
 
@@ -133,15 +143,14 @@ def minimax(board, cpuPlayer, humanPlayer, isMaximising, move)
   losingMove = checkForWinCondition(board, humanPlayer)
   ## check if the move was a draw
   isDraw = haveAllPositionsBeenTaken(board)
-  score = 0
   if winningMove
-    score = 1
+    score = 10
     return score
   elsif isDraw
     score = 0
     return score
   elsif losingMove
-    score = -1
+    score = -10
     return score
   end
 
@@ -149,29 +158,26 @@ def minimax(board, cpuPlayer, humanPlayer, isMaximising, move)
     bestScore = -Float::INFINITY
     possibleMoves = retrieveRemainingPositions(board)
     for move in possibleMoves
-      posX, posY = calcXY(move)
+      calcPosition = calcXY(move)
+      posX, posY = calcPosition
       board.updateBoard(posX, posY, cpuPlayer.id)
       score = minimax(board, cpuPlayer, humanPlayer, false, move)
       board.undoMove(posX, posY)
-      if score > bestScore
-        bestScore = score
-      end
+      bestScore = [score, bestScore].max
     end
-    return bestScore
   else
     bestScore = Float::INFINITY
     possibleMoves = retrieveRemainingPositions(board)
     for move in possibleMoves
-      posX, posY = calcXY(move)
+      calcPosition = calcXY(move)
+      posX, posY = calcPosition
       board.updateBoard(posX, posY, humanPlayer.id)
       score = minimax(board, cpuPlayer, humanPlayer, true, move)
       board.undoMove(posX, posY)
-      if score < bestScore
-        bestScore = score
-      end
+      bestScore = [score, bestScore].min
     end
-    return bestScore
   end
+  return bestScore
 end
 
 def calcXY(position)
@@ -267,8 +273,8 @@ def validateRowScore(board, player)
         foundWinningScore = true
         break
       end
-      player.resetScore()
     end
+    player.resetScore()
   end
   if foundWinningScore
     player.resetScore()
@@ -342,18 +348,18 @@ def checkForValidMove(board, posX, posY)
 end
 
 def haveAllPositionsBeenTaken(board)
-  remainingMoves = 9
-  board.gameBoard.each do |row|
-    for i in row
-      if i.nil? || i.empty?
-        remainingMoves -= 1
+  remainingMoves = []
+  for i in board.gameBoard
+    for j in i
+      if j.nil? || j.empty?
+        remainingMoves.push(j)
       end
     end
-    if remainingMoves == 0
-      return true
-    else
-      return false
-    end
+  end
+  if remainingMoves.empty?
+    return true
+  else
+    return false
   end
 end
 
@@ -368,10 +374,11 @@ def retrieveRemainingPositions(board)
       end
     end
   end
+  currPos = 0
   return possibleRemainingMoves
 end
 
-def declareDraw()
+def declareDraw(board)
   puts " "
   puts " "
   puts "The game is a draw!"
