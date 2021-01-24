@@ -123,7 +123,6 @@ def cpuSelectMovePosition(board, cpu, human)
       if score > bestScore
         bestMove = move
         bestScore = score
-        puts bestMove
       end
     end
     calcPosition = calcXY(bestMove)
